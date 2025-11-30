@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LoanManager</title>
+<style>
+:root{--bg:#ffffff;--card:#f7f9fb;--muted:#6b7280;--accent:#0ea5a4;--accent2:#38bdf8;--glass:rgba(2,6,23,0.03);--radius:12px;--maxw:1200px;--text:#0b1220}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+.app{max-width:1200px;margin:28px auto;padding:20px;border-radius:12px;background:transparent}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#052}
+h1{font-size:18px;margin:0}
+.preview-btn{padding:8px 10px;border-radius:8px;border:1px solid rgba(15,23,42,0.06);background:#fff;cursor:pointer;font-size:13px;margin-left:6px}
+.role-pill{padding:8px 10px;border-radius:999px;background:#f3f4f6;color:var(--muted);cursor:pointer;font-size:13px}
+.container{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:18px}
+.sidebar{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+.usercard{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.avatar{width:52px;height:52px;border-radius:10px;background:#e6f6f4;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700}
+.menu a{display:block;padding:10px;border-radius:10px;color:var(--muted);text-decoration:none;margin-bottom:6px}
+.menu a:hover{background:#eef2f7;color:var(--accent)}
+.main{background:transparent;padding:16px;border-radius:12px;min-height:640px}
+.card{background:#ffffff;padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(15,23,42,0.04);margin-bottom:12px;border:1px solid #eef2f7}
+.kpis{display:flex;gap:12px}
+.kpi{flex:1;padding:12px;border-radius:10px;background:#fafafa;border:1px solid #f1f5f9}
+.kpi h4{margin:0;color:var(--muted);font-size:13px}
+.kpi p{margin:8px 0 0 0;font-size:18px}
+.table{width:100%;border-collapse:collapse;margin-top:8px}
+.table th,.table td{padding:8px;border-bottom:1px dashed rgba(15,23,42,0.04);text-align:left}
+.btn{padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid rgba(15,23,42,0.06);color:var(--accent)}
+.form-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.input,select{padding:8px;border-radius:8px;border:1px solid #e6eef6;background:#fff;color:var(--text);min-width:0}
+.center{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:30px;color:var(--muted)}
+.small{font-size:13px;color:var(--muted)}
+.notice{padding:8px;border-radius:8px;background:#f8fafc;color:var(--muted)}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:880px){.container{grid-template-columns:1fr}.columns{grid-template-columns:1fr}}
+.login-area{display:flex;gap:20px;align-items:flex-start;justify-content:center;min-height:480px;flex-direction:column;max-width:820px;margin:0 auto}
+.footer{margin-top:12px;text-align:center;color:var(--muted);font-size:13px}
+.tx-type{padding:6px 8px;border-radius:8px;background:#f3f4f6;font-weight:600}
+.code{background:#f3f6f9;padding:10px;border-radius:6px;font-family:monospace;font-size:13px}
+.filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.linkish{background:transparent;border:none;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0;font-weight:600}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">LM</div>
+      <div>
+        <h1>LoanManager</h1>
+        <div class="small">Manage loans, payments & reports</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center">
+      <button class="preview-btn" id="previewAdminBtn">Preview Admin Portal</button>
+      <button class="preview-btn" id="previewAnalystBtn">Preview Analyst Portal</button>
+      <div id="roleBadges" style="margin-left:12px"></div>
+    </div>
+  </div>
+
+  <div id="uiRoot"></div>
+
+  <div class="footer">© 2025 LoanManager</div>
+</div>
+
+<script>
+const DB_KEY = 'loanmgr_db_v1';
+const SETTINGS_KEY = 'loanmgr_settings_v1';
+function loadDB(){ const raw = localStorage.getItem(DB_KEY); if(!raw){ const seed = { users:[], loanProducts:[], loans:[], schedules:[], transactions:[], audit:[] }; localStorage.setItem(DB_KEY, JSON.stringify(seed)); return seed; } return JSON.parse(raw); }
+function saveDB(db){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function loadSettings(){ const r = localStorage.getItem(SETTINGS_KEY); if(!r){ const s = { passwordPolicy:{minLength:6,requireNumber:false}, sessionTimeoutMinutes:240, portalPasswords:{admin:'admin@123',analyst:'12345'} }; localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); return s;} return JSON.parse(r); }
+function saveSettings(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+let DB = loadDB();
+let SETTINGS = loadSettings();
+
+function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,10); }
+function nowISO(){ return new Date().toISOString(); }
+function money(x){ return '₹' + Number(x).toLocaleString('en-IN'); }
+function fmtDate(d){ if(!d) return ''; const dt=new Date(d); return dt.toISOString().slice(0,10); }
+
+if(DB.users.length===0){
+  DB.users.push({id:'u_admin',name:'Admin User',email:'admin@local',password:'admin',role:'admin',created_at:nowISO()});
+  DB.users.push({id:'u_lender',name:'Lender One',email:'lender@local',password:'lender',role:'lender',created_at:nowISO()});
+  DB.users.push({id:'u_borrower',name:'Borrower One',email:'borrower@local',password:'borrower',role:'borrower',created_at:nowISO()});
+  DB.users.push({id:'u_analyst',name:'Analyst One',email:'analyst@local',password:'analyst',role:'analyst',created_at:nowISO()});
+  saveDB(DB);
+}
+
+let SESSION={user:null,lastActive:Date.now()};
+function setUser(u){ SESSION.user=u; SESSION.lastActive=Date.now(); renderApp(); updatePreviewButtonsVisibility(); }
+function logout(){ SESSION.user=null; renderApp(); updatePreviewButtonsVisibility(); }
+function userById(id){ return DB.users.find(u=>u.id===id); }
+
+function addUser(u){ DB.users.push(u); DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'register',meta:JSON.stringify({email:u.email}),created_at:nowISO()}); saveDB(DB); }
+function updateUserRole(id,role){ const u=DB.users.find(x=>x.id===id); if(!u)return; u.role=role; DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'change_role',meta:JSON.stringify({user:id,role}),created_at:nowISO()}); saveDB(DB); }
+function deleteUser(id){ DB.users=DB.users.filter(x=>x.id!==id); DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'delete_user',meta:JSON.stringify({user:id}),created_at:nowISO()}); saveDB(DB); }
+
+function addLoanProduct(p){ p.id=uid('prod'); DB.loanProducts.push(p); DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'create_product',meta:JSON.stringify(p),created_at:nowISO()}); saveDB(DB); }
+function addLoan(l){ l.id=uid('loan'); DB.loans.push(l); DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'create_loan',meta:JSON.stringify(l),created_at:nowISO()}); saveDB(DB); }
+function addTransaction(tx){ tx.id=uid('tx'); tx.created_at=nowISO(); DB.transactions.push(tx); DB.audit.push({id:uid('a'),user_id:(SESSION.user&&SESSION.user.id)||null,action:'transaction',meta:JSON.stringify(tx),created_at:nowISO()}); saveDB(DB); }
+function saveScheduleEntries(entries){ entries.forEach(e=>DB.schedules.push(e)); saveDB(DB); }
+
+function amortizeAnnuitized(principal,annualRate,termMonths,startDate){
+  const P=Number(principal); const r=Number(annualRate)/100/12; const n=Number(termMonths); if(!P||!n) return null;
+  const monthlyPayment=(P*r)/(1-Math.pow(1+r,-n));
+  let balance=P; const schedule=[]; let totalInterest=0;
+  for(let i=1;i<=n;i++){ const interest=+(balance*r); const principalPaid=+(monthlyPayment-interest); balance=+(Math.max(0,balance-principalPaid)); totalInterest+=interest; const due=new Date(startDate||Date.now()); due.setMonth(due.getMonth()+i); schedule.push({installment:i,dueDate:due.toISOString().slice(0,10),payment:+monthlyPayment.toFixed(2),principal:+principalPaid.toFixed(2),interest:+interest.toFixed(2),balance:+balance.toFixed(2)}); }
+  return {monthly_payment:+monthlyPayment.toFixed(2),total_interest:+totalInterest.toFixed(2),total_payment:+((monthlyPayment*n).toFixed(2)),schedule};
+}
+
+const root=document.getElementById('uiRoot');
+function updatePreviewButtonsVisibility(){
+  const adminBtn = document.getElementById('previewAdminBtn');
+  const analystBtn = document.getElementById('previewAnalystBtn');
+  if(!adminBtn || !analystBtn) return;
+
+  // Make preview buttons always visible so users can open preview modals quickly.
+  adminBtn.style.display = 'inline-block';
+  analystBtn.style.display = 'inline-block';
+
+  // Visually indicate if current user actually has the role by toggling a subtle disabled look
+  const isAdmin = SESSION.user && SESSION.user.role === 'admin';
+  const isAnalystOrAdmin = SESSION.user && (SESSION.user.role === 'analyst' || SESSION.user.role === 'admin');
+
+  adminBtn.disabled = !isAdmin;
+  analystBtn.disabled = !isAnalystOrAdmin;
+
+  if(adminBtn.disabled) adminBtn.style.opacity = '0.6'; else adminBtn.style.opacity = '1';
+  if(analystBtn.disabled) analystBtn.style.opacity = '0.6'; else analystBtn.style.opacity = '1';
+}
+function renderApp(){ DB=loadDB(); SETTINGS=loadSettings(); if(!SESSION.user) return renderLogin(); updatePreviewButtonsVisibility(); return renderDashboard(); }
+
+/* ------------------ REPLACED renderLogin (with quick-login buttons) ------------------ */
+function renderLogin(){
+  root.innerHTML=''; const wrap=document.createElement('div'); wrap.className='login-area';
+  wrap.innerHTML=`
+  <div style="width:100%" class="card">
+    <h3 style="margin:0 0 8px 0">Login</h3>
+    <div class="form-row" style="margin-bottom:10px;flex-direction:column;align-items:stretch">
+      <input id="loginEmail" class="input" placeholder="Email" />
+      <input id="loginPass" class="input" type="password" placeholder="Password" />
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <div>
+          <button id="btnLogin" class="btn">Login</button>
+          <button id="btnForgot" class="linkish" style="margin-left:12px">Forgot password?</button>
+        </div>
+        <div class="small">Quick accounts: admin@local/admin, lender@local/lender, borrower@local/borrower, analyst@local/analyst</div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="quickAdmin" class="btn ghost">Quick: Admin</button>
+        <button id="quickAnalyst" class="btn ghost">Quick: Analyst</button>
+        <button id="quickLender" class="btn ghost">Quick: Lender</button>
+        <button id="quickBorrower" class="btn ghost">Quick: Borrower</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="width:100%" class="card">
+    <h3 style="margin:0 0 8px 0">Create account</h3>
+    <div class="form-row" style="margin-top:10px;flex-direction:column;align-items:stretch">
+      <input id="regName" class="input" placeholder="Full name" />
+      <input id="regEmail2" class="input" placeholder="Email" />
+      <input id="regPass2" class="input" type="password" placeholder="Password" />
+      <select id="regRole2" class="input"><option value="borrower">Borrower</option><option value="lender">Lender</option></select>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px"><button id="btnRegister" class="btn">Register</button></div>
+    </div>
+  </div>
+  `;
+  root.appendChild(wrap);
+
+  document.getElementById('btnLogin').onclick=()=>{ const email=document.getElementById('loginEmail').value.trim(); const pass=document.getElementById('loginPass').value; const user=DB.users.find(u=>u.email===email&&u.password===pass); if(!user) return alert('Invalid credentials'); setUser({id:user.id,name:user.name,email:user.email,role:user.role}); };
+
+  document.getElementById('btnForgot').onclick=()=>{ const email=prompt('Enter your account email to retrieve password:'); if(!email) return; const user=DB.users.find(u=>u.email===email.trim()); if(!user) return alert('No account found for that email'); alert('Password for '+email+' is: '+user.password); };
+
+  document.getElementById('btnRegister').onclick=()=>{ const name=document.getElementById('regName').value.trim()||'New User'; const email=document.getElementById('regEmail2').value.trim(); const pass=document.getElementById('regPass2').value; const role=document.getElementById('regRole2').value; if(!email||!pass) return alert('Provide email and password'); if(DB.users.find(u=>u.email===email)) return alert('Email already registered'); if(pass.length<SETTINGS.passwordPolicy.minLength) return alert('Password too short per policy'); const nu={id:uid('u'),name,email,password:pass,role,created_at:nowISO()}; addUser(nu); setUser({id:nu.id,name:nu.name,email:nu.email,role:nu.role}); };
+
+  // --- Quick login handlers ---
+  document.getElementById('quickAdmin').onclick = () => {
+    const user = DB.users.find(u=>u.email==='admin@local');
+    if(!user) return alert('Admin account missing.'); setUser({id:user.id,name:user.name,email:user.email,role:user.role});
+  };
+  document.getElementById('quickAnalyst').onclick = () => {
+    const user = DB.users.find(u=>u.email==='analyst@local');
+    if(!user) return alert('Analyst account missing.'); setUser({id:user.id,name:user.name,email:user.email,role:user.role});
+  };
+  document.getElementById('quickLender').onclick = () => {
+    const user = DB.users.find(u=>u.email==='lender@local');
+    if(!user) return alert('Lender account missing.'); setUser({id:user.id,name:user.name,email:user.email,role:user.role});
+  };
+  document.getElementById('quickBorrower').onclick = () => {
+    const user = DB.users.find(u=>u.email==='borrower@local');
+    if(!user) return alert('Borrower account missing.'); setUser({id:user.id,name:user.name,email:user.email,role:user.role});
+  };
+
+  renderRoleBadges();
+}
+/* ------------------ end renderLogin ------------------ */
+
+function renderDashboard(){
+  root.innerHTML=''; const container=document.createElement('div'); container.className='container';
+  const sidebar=document.createElement('aside'); sidebar.className='sidebar';
+  let menuHtml = '<div class="menu">';
+  menuHtml += '<a href="#" data-nav="dashboard">Dashboard</a>';
+  menuHtml += '<a href="#" data-nav="loans">Loans</a>';
+  menuHtml += '<a href="#" data-nav="transactions">Transactions</a>';
+  menuHtml += '<a href="#" data-nav="products">Products</a>';
+  menuHtml += '<a href="#" data-nav="calculator">Calculator</a>';
+  if(SESSION.user && SESSION.user.role === 'admin'){
+    menuHtml += '<a href="#" data-nav="users">Users</a>';
+    menuHtml += '<a href="#" data-nav="admin">Admin</a>';
+  }
+  if(SESSION.user && (SESSION.user.role === 'analyst' || SESSION.user.role === 'admin')){
+    menuHtml += '<a href="#" data-nav="reports">Reports</a>';
+  }
+  menuHtml += '<a href="#" id="btnLogout">Logout</a></div>';
+  sidebar.innerHTML = '<div class="usercard"><div class="avatar">'+((SESSION.user.name||SESSION.user.email||'U').slice(0,2).toUpperCase())+'</div><div><div style="font-weight:700">'+(SESSION.user.name||SESSION.user.email)+'</div><div class="small">'+SESSION.user.role.toUpperCase()+'</div></div></div>' + menuHtml;
+  container.appendChild(sidebar);
+  const main=document.createElement('main'); main.className='main'; main.id='mainArea'; container.appendChild(main);
+  root.appendChild(container);
+  sidebar.querySelectorAll('[data-nav]').forEach(a=>a.onclick=e=>{ e.preventDefault(); requestPortalAndNavigate(a.getAttribute('data-nav')); });
+  document.getElementById('btnLogout').onclick=()=>{ logout(); renderApp(); };
+  renderRoleBadges(); renderMainSection('dashboard');
+}
+
+function can(roleArr){ return roleArr.includes(SESSION.user.role); }
+
+function requestPortalAndNavigate(navId){
+  if(navId==='admin'){ if(!SESSION.user || SESSION.user.role!=='admin'){ return alert('Admin role required to access Admin portal.'); } const pass=prompt('Enter Admin portal password:'); if(pass===SETTINGS.portalPasswords.admin){ renderMainSection('admin'); } else { alert('Incorrect Admin portal password'); } return; }
+  if(navId==='reports'){ const pass=prompt('Enter Analyst portal password:'); if((SESSION.user && (SESSION.user.role==='analyst' || SESSION.user.role==='admin')) && pass===SETTINGS.portalPasswords.analyst){ renderMainSection('reports'); } else { alert('Access denied or incorrect Analyst portal password'); } return; }
+  renderMainSection(navId);
+}
+
+function renderMainSection(id){
+  const main=document.getElementById('mainArea'); main.innerHTML='';
+  if(id==='dashboard') return renderDashboardView(main);
+  if(id==='loans') return renderLoansView(main);
+  if(id==='transactions') return renderTransactionsView(main);
+  if(id==='products') return renderProductsView(main);
+  if(id==='calculator') return renderCalculatorView(main);
+  if(id==='users') return renderUsersView(main);
+  if(id==='reports') return renderReportsView(main);
+  if(id==='admin') return renderAdminView(main);
+  main.innerHTML='<div class="card">Not implemented</div>';
+}
+
+function renderDashboardView(main){
+  const totalOutstanding=DB.loans.reduce((s,l)=>s+Number(l.principal||0),0);
+  const activeLoans=DB.loans.filter(l=>l.status==='active'||l.status==='disbursed').length;
+  const delinquentCount=DB.schedules.filter(s=>s.status==='due'&&new Date(s.due_date)<new Date()).length;
+  main.innerHTML=`<div class="kpis"><div class="kpi"><h4>Total Outstanding</h4><p>${money(totalOutstanding)}</p></div><div class="kpi"><h4>Active Loans</h4><p>${activeLoans}</p></div><div class="kpi"><h4>Delinquent Installments</h4><p>${delinquentCount}</p></div></div><div class="card"><h3 style="margin:0">Recent Transactions</h3><table class="table"><thead><tr><th>Ref</th><th>Loan</th><th>Amount</th><th>Type</th><th>When</th></tr></thead><tbody id="recentTxBody"></tbody></table></div>`;
+  const tbody=document.getElementById('recentTxBody');
+  DB.transactions.slice(-8).reverse().forEach(t=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${t.id}</td><td>${t.loan_id||'-'}</td><td>${money(t.amount)}</td><td>${t.type}</td><td>${fmtDate(t.created_at)}</td>`; tbody.appendChild(tr); });
+}
+
+function renderLoansView(main){
+  main.innerHTML=''; const header=document.createElement('div'); header.className='card'; header.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Loans</h3></div>`; main.appendChild(header);
+  const actions=document.createElement('div'); actions.className='card'; actions.innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${can(['lender','admin'])?'<button id="btnNewLoan" class="btn">Create Loan</button>':''}${can(['borrower'])?'<button id="btnApplyLoan" class="btn ghost">Apply for Loan</button>':''}<div style="margin-left:auto" class="small">Total loans: ${DB.loans.length}</div></div>`; main.appendChild(actions);
+  const tableCard=document.createElement('div'); tableCard.className='card'; tableCard.innerHTML=`<table class="table"><thead><tr><th>ID</th><th>Borrower</th><th>Principal</th><th>Rate</th><th>Term</th><th>Status</th><th>Actions</th></tr></thead><tbody id="loansBody"></tbody></table>`; main.appendChild(tableCard);
+  const tbody=tableCard.querySelector('#loansBody');
+  DB.loans.slice().reverse().forEach(l=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.id}</td><td>${l.borrower_name||l.borrower_id||'-'}</td><td>${money(l.principal)}</td><td>${l.annual_rate}%</td><td>${l.term_months}</td><td>${l.status}</td><td></td>`; const actionsTd=tr.querySelector('td:last-child'); if(can(['lender','admin'])){ const btnDis=document.createElement('button'); btnDis.className='btn small'; btnDis.textContent='Disburse'; btnDis.onclick=()=>disburseLoan(l.id); actionsTd.appendChild(btnDis); const btnView=document.createElement('button'); btnView.className='btn ghost small'; btnView.style.marginLeft='6px'; btnView.textContent='View'; btnView.onclick=()=>viewLoanDetail(l.id); actionsTd.appendChild(btnView); } else { const btnView=document.createElement('button'); btnView.className='btn ghost small'; btnView.textContent='View'; btnView.onclick=()=>viewLoanDetail(l.id); actionsTd.appendChild(btnView); } tbody.appendChild(tr); });
+  if(can(['lender','admin'])) document.getElementById('btnNewLoan').onclick=openCreateLoanModal;
+  if(can(['borrower'])) document.getElementById('btnApplyLoan').onclick=openApplyLoanModal;
+}
+
+function openCreateLoanModal(){ const modal=createModal('Create Loan'); modal.body.innerHTML=`<div class="form-row" style="margin-bottom:8px"><input id="c_borrower" class="input" placeholder="Borrower name or id" /><input id="c_principal" class="input" placeholder="Principal (numeric)" /><input id="c_rate" class="input" placeholder="Annual rate %" /><input id="c_term" class="input" placeholder="Term months" /></div><div style="display:flex;gap:8px;justify-content:flex-end"><button id="c_cancel" class="btn ghost">Cancel</button><button id="c_create" class="btn">Create</button></div>`; modal.show(); modal.body.querySelector('#c_cancel').onclick=()=>modal.close(); modal.body.querySelector('#c_create').onclick=()=>{ const borrower=modal.body.querySelector('#c_borrower').value.trim()||'Unknown'; const principal=Number(modal.body.querySelector('#c_principal').value); const rate=Number(modal.body.querySelector('#c_rate').value); const term=Number(modal.body.querySelector('#c_term').value); if(!principal||!rate||!term) return alert('Fill numbers'); const loan={product_id:null,lender_id:SESSION.user.id,borrower_id:null,borrower_name:borrower,principal,annual_rate:rate,term_months:term,start_date:new Date().toISOString(),status:'disbursed',disbursed_at:new Date().toISOString(),created_at:nowISO()}; addLoan(loan); const am=amortizeAnnuitized(principal,rate,term,new Date().toISOString()); const loanId=loan.id; const entries=am.schedule.map(s=>({id:uid('s'),loan_id:loanId,installment_no:s.installment,due_date:s.dueDate,principal_component:s.principal,interest_component:s.interest,total_due:s.payment,balance:s.balance,status:'due'})); saveScheduleEntries(entries); modal.close(); renderMainSection('loans'); }; }
+
+function openApplyLoanModal(){ const modal=createModal('Apply for Loan'); modal.body.innerHTML=`<div class="form-row" style="margin-bottom:8px"><input id="a_amount" class="input" placeholder="Amount" /><input id="a_term" class="input" placeholder="Term months" /><input id="a_rate" class="input" placeholder="Proposed rate %" /></div><div style="display:flex;gap:8px;justify-content:flex-end"><button id="a_cancel" class="btn ghost">Cancel</button><button id="a_apply" class="btn">Apply</button></div>`; modal.show(); modal.body.querySelector('#a_cancel').onclick=()=>modal.close(); modal.body.querySelector('#a_apply').onclick=()=>{ const amount=Number(modal.body.querySelector('#a_amount').value); const term=Number(modal.body.querySelector('#a_term').value); const rate=Number(modal.body.querySelector('#a_rate').value); if(!amount||!term||!rate) return alert('Fill numbers'); const loan={product_id:null,lender_id:null,borrower_id:SESSION.user.id,borrower_name:SESSION.user.name,principal:amount,annual_rate:rate,term_months:term,start_date:null,status:'application',created_at:nowISO()}; addLoan(loan); modal.close(); renderMainSection('loans'); }; }
+
+function disburseLoan(loanId){ const loan=DB.loans.find(x=>x.id===loanId); if(!loan) return alert('Loan missing'); if(loan.status==='disbursed'||loan.status==='active') return alert('Already disbursed'); if(!confirm('Disburse loan and generate schedule?')) return; loan.status='disbursed'; loan.disbursed_at=nowISO(); loan.start_date=nowISO(); const am=amortizeAnnuitized(loan.principal,loan.annual_rate,loan.term_months,loan.start_date); const entries=am.schedule.map(s=>({id:uid('s'),loan_id:loan.id,installment_no:s.installment,due_date:s.dueDate,principal_component:s.principal,interest_component:s.interest,total_due:s.payment,balance:s.balance,status:'due'})); saveScheduleEntries(entries); saveDB(DB); renderMainSection('loans'); }
+
+function viewLoanDetail(loanId){ const loan=DB.loans.find(x=>x.id===loanId); if(!loan) return alert('Missing'); const modal=createModal('Loan '+loan.id); const schedules=DB.schedules.filter(s=>s.loan_id===loan.id).sort((a,b)=>a.installment_no-b.installment_no); modal.body.innerHTML=`<div style="display:flex;gap:12px;align-items:center"><div style="flex:1"><div class="small">Borrower</div><div style="font-weight:700">${loan.borrower_name||loan.borrower_id||'-'}</div><div class="small" style="margin-top:6px">Principal: ${money(loan.principal)} • Rate: ${loan.annual_rate}% • Term: ${loan.term_months}m</div></div><div style="display:flex;gap:8px;align-items:center"><input id="payAmount" class="input" placeholder="Amount" /><select id="payType" class="input"><option value="payment">Payment</option><option value="fee">Fee</option></select><button id="payBtn" class="btn">Record Payment</button></div></div><div style="margin-top:12px"><h4 style="margin:0">Schedule</h4><div style="max-height:240px;overflow:auto;margin-top:8px"><table class="table"><thead><tr><th>#</th><th>Due</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th><th>Status</th></tr></thead><tbody id="schedBody"></tbody></table></div></div>`; modal.show(); const schedBody=modal.body.querySelector('#schedBody'); schedules.forEach(s=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${s.installment_no}</td><td>${s.due_date}</td><td>${money(s.total_due)}</td><td>${money(s.principal_component)}</td><td>${money(s.interest_component)}</td><td>${money(s.balance)}</td><td>${s.status}</td>`; schedBody.appendChild(tr); }); modal.body.querySelector('#payBtn').onclick=()=>{ const amount=Number(modal.body.querySelector('#payAmount').value); const type=modal.body.querySelector('#payType').value; if(!amount) return alert('Enter amount'); addTransaction({txn_ref:uid('txn'),loan_id:loan.id,user_id:SESSION.user.id,amount,type}); const due=DB.schedules.find(s=>s.loan_id===loan.id&&s.status==='due'); if(due){ due.status='paid'; due.paid_at=nowISO(); saveDB(DB); } modal.close(); renderMainSection('loans'); alert('Payment recorded'); }; }
+
+function renderTransactionsView(main){ main.innerHTML=''; const card=document.createElement('div'); card.className='card'; card.innerHTML=`<h3 style="margin:0 0 8px 0">Transactions Ledger</h3><table class="table"><thead><tr><th>Ref</th><th>Loan</th><th>User</th><th>Amount</th><th>Type</th><th>Date</th></tr></thead><tbody id="txBody"></tbody></table>`; main.appendChild(card); const tbody=card.querySelector('#txBody'); DB.transactions.slice().reverse().forEach(t=>{ const user=userById(t.user_id); const tr=document.createElement('tr'); tr.innerHTML=`<td>${t.id}</td><td>${t.loan_id||'-'}</td><td>${user?user.name:'-'}</td><td>${money(t.amount)}</td><td>${t.type}</td><td>${fmtDate(t.created_at)}</td>`; tbody.appendChild(tr); }); }
+
+function renderProductsView(main){ main.innerHTML=''; const header=document.createElement('div'); header.className='card'; header.innerHTML=`<h3 style="margin:0 0 8px 0">Loan Products</h3>`; main.appendChild(header); if(can(['lender','admin'])){ const prodForm=document.createElement('div'); prodForm.className='card'; prodForm.innerHTML=`<div class="form-row"><input id="prodName" class="input" placeholder="Product name" /><input id="prodMin" class="input" placeholder="Min principal" /><input id="prodMax" class="input" placeholder="Max principal" /><input id="prodRate" class="input" placeholder="Annual rate %" /><input id="prodTerm" class="input" placeholder="Term months" /><button id="btnCreateProd" class="btn">Create</button></div>`; main.appendChild(prodForm); prodForm.querySelector('#btnCreateProd').onclick=()=>{ const name=prodForm.querySelector('#prodName').value||'Product'; const pmin=Number(prodForm.querySelector('#prodMin').value)||0; const pmax=Number(prodForm.querySelector('#prodMax').value)||0; const rate=Number(prodForm.querySelector('#prodRate').value)||0; const term=Number(prodForm.querySelector('#prodTerm').value)||12; addLoanProduct({name,principal_min:pmin,principal_max:pmax,annual_rate:rate,term_months:term,lender_id:SESSION.user.id,created_at:nowISO()}); renderProductsView(main); }; } const listCard=document.createElement('div'); listCard.className='card'; listCard.innerHTML=`<table class="table"><thead><tr><th>Product</th><th>Range</th><th>Rate</th><th>Term</th><th>Lender</th></tr></thead><tbody id="prodBody"></tbody></table>`; main.appendChild(listCard); const tbody=listCard.querySelector('#prodBody'); DB.loanProducts.slice().reverse().forEach(p=>{ const lender=userById(p.lender_id); const tr=document.createElement('tr'); tr.innerHTML=`<td>${p.name}</td><td>${money(p.principal_min)} - ${money(p.principal_max)}</td><td>${p.annual_rate}%</td><td>${p.term_months}</td><td>${lender?lender.name:'-'}</td>`; tbody.appendChild(tr); }); }
+
+function renderCalculatorView(main){ main.innerHTML=''; const card=document.createElement('div'); card.className='card'; card.innerHTML=`<h3 style="margin:0 0 8px 0">Loan Calculator</h3><div class="columns"><div><div class="form-row" style="margin-bottom:8px"><input id="calcPrincipal" class="input" placeholder="Principal" /><input id="calcRate" class="input" placeholder="Annual rate %" /><input id="calcTerm" class="input" placeholder="Term months" /><input id="calcStart" class="input" type="date" /></div><div style="display:flex;gap:8px;justify-content:flex-end"><button id="btnCalc" class="btn">Calculate</button></div></div><div><div id="calcResult" class="card notice">Enter values and click Calculate</div></div></div>`; main.appendChild(card); card.querySelector('#btnCalc').onclick=()=>{ const principal=Number(card.querySelector('#calcPrincipal').value); const rate=Number(card.querySelector('#calcRate').value); const term=Number(card.querySelector('#calcTerm').value); const start=card.querySelector('#calcStart').value||new Date().toISOString(); const res=amortizeAnnuitized(principal,rate,term,start); if(!res) return alert('Enter valid numbers'); const el=card.querySelector('#calcResult'); let html=`<div><strong>Monthly:</strong> ${money(res.monthly_payment)} • <strong>Total Interest:</strong> ${money(res.total_interest)} • <strong>Total:</strong> ${money(res.total_payment)}</div>`; html+=`<div style="margin-top:8px;max-height:240px;overflow:auto"><table class="table"><thead><tr><th>#</th><th>Due</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody>`; res.schedule.forEach(s=> html+=`<tr><td>${s.installment}</td><td>${s.dueDate}</td><td>${money(s.payment)}</td><td>${money(s.principal)}</td><td>${money(s.interest)}</td><td>${money(s.balance)}</td></tr>`); html+=`</tbody></table></div>`; el.innerHTML=html; }; }
+
+function renderUsersView(main){ if(!can(['admin'])) return main.innerHTML=`<div class="card"><div class="center">Only Admin can manage users.</div></div>`; main.innerHTML=`<div class="card"><h3 style="margin:0 0 8px 0">User Management</h3><table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody id="usersBody"></tbody></table></div>`; const tbody=document.getElementById('usersBody'); DB.users.forEach(u=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.name}</td><td>${u.email}</td><td>${u.role}</td><td></td>`; const td=tr.querySelector('td:last-child'); const sel=document.createElement('select'); sel.className='input'; sel.style.width='140px'; ['admin','lender','borrower','analyst'].forEach(r=>{ const o=document.createElement('option'); o.value=r; o.textContent=r; if(u.role===r) o.selected=true; sel.appendChild(o); }); const btnSave=document.createElement('button'); btnSave.className='btn ghost small'; btnSave.textContent='Save'; btnSave.onclick=()=>{ updateUserRole(u.id,sel.value); renderUsersView(main); }; const btnDel=document.createElement('button'); btnDel.className='btn small'; btnDel.style.marginLeft='6px'; btnDel.textContent='Delete'; btnDel.onclick=()=>{ if(confirm('Delete user?')){ deleteUser(u.id); renderUsersView(main); } }; td.appendChild(sel); td.appendChild(btnSave); td.appendChild(btnDel); tbody.appendChild(tr); }); }
+
+function renderReportsView(main){ if(!can(['analyst','admin'])) return main.innerHTML=`<div class="card"><div class="center">Only Analysts and Admins can view reports. Use the Analyst portal password to access.</div></div>`; main.innerHTML=''; const controls=document.createElement('div'); controls.className='card'; controls.innerHTML=`<h3 style="margin:0 0 8px 0">Financial Reports</h3><div class="filter-row"><label class="small">From <input id="repFrom" type="date" class="input" /></label><label class="small">To <input id="repTo" type="date" class="input" /></label><label class="small">Lender <select id="repLender" class="input"><option value="">All</option></select></label><label class="small">Status <select id="repStatus" class="input"><option value="">All</option><option value="application">Application</option><option value="disbursed">Disbursed</option><option value="active">Active</option><option value="repaid">Repaid</option></select></label><button id="btnRunReport" class="btn">Run</button><button id="btnExportCSV" class="btn ghost">Export CSV</button></div>`; main.appendChild(controls); const kpiCard=document.createElement('div'); kpiCard.className='card'; kpiCard.innerHTML=`<div class="kpis"><div class="kpi"><h4>Outstanding</h4><p id="kOutstanding">-</p></div><div class="kpi"><h4>Avg APR</h4><p id="kAvgAPR">-</p></div><div class="kpi"><h4>NPL % (30d)</h4><p id="kNPL">-</p></div></div>`; main.appendChild(kpiCard); const tableCard=document.createElement('div'); tableCard.className='card'; tableCard.innerHTML=`<h4 style="margin:0 0 8px 0">Loans Report</h4><table class="table"><thead><tr><th>Loan</th><th>Borrower</th><th>Principal</th><th>Rate</th><th>Term</th><th>Status</th><th>Risk</th></tr></thead><tbody id="reportBody"></tbody></table>`; main.appendChild(tableCard); const repLender=document.getElementById('repLender'); repLender.innerHTML='<option value="">All</option>'; DB.users.filter(u=>u.role==='lender').forEach(l=> repLender.innerHTML+=`<option value="${l.id}">${l.name}</option>`); function computeRisk(loan){ const score=Math.round(Math.min(100,(loan.annual_rate/20)*50 + (loan.term_months/120)*30 + (loan.principal/1000000)*20)); const label=score>70?'High':score>40?'Medium':'Low'; return {score,label}; } function runReport(){ const from=document.getElementById('repFrom').value; const to=document.getElementById('repTo').value; const lender=document.getElementById('repLender').value; const status=document.getElementById('repStatus').value; let loans=DB.loans.slice(); if(from) loans=loans.filter(l=>new Date(l.created_at)>=new Date(from)); if(to) loans=loans.filter(l=>new Date(l.created_at)<=new Date(new Date(to).setHours(23,59,59))); if(lender) loans=loans.filter(l=>l.lender_id===lender); if(status) loans=loans.filter(l=>l.status===status); const outstanding=loans.reduce((s,l)=>s+Number(l.principal||0),0); const avgAPR=loans.length?(loans.reduce((s,l)=>s+Number(l.annual_rate||0),0)/loans.length).toFixed(2):0; const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30); const nplInst=DB.schedules.filter(s=>s.status==='due'&&new Date(s.due_date)<cutoff).length; const nplPct=DB.schedules.length?((nplInst/DB.schedules.length)*100).toFixed(2):0; document.getElementById('kOutstanding').innerText=money(outstanding); document.getElementById('kAvgAPR').innerText=avgAPR+'%'; document.getElementById('kNPL').innerText=nplPct+'%'; const tbody=document.getElementById('reportBody'); tbody.innerHTML=''; loans.forEach(l=>{ const r=computeRisk(l); const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.id}</td><td>${l.borrower_name}</td><td>${money(l.principal)}</td><td>${l.annual_rate}%</td><td>${l.term_months}</td><td>${l.status}</td><td>${r.label} (${r.score})</td>`; tbody.appendChild(tr); }); document.getElementById('btnExportCSV').onclick=()=>{ const csvRows=[['loan_id','borrower','principal','rate','term','status','risk_score']]; loans.forEach(l=>{ const r=computeRisk(l); csvRows.push([l.id,`"${l.borrower_name}"`,l.principal,l.annual_rate,l.term_months,l.status,r.score]); }); const csv=csvRows.map(r=>r.join(',')).join('\n'); downloadText(csv,`loans_report_${Date.now()}.csv`,'text/csv'); }; } document.getElementById('btnRunReport').onclick=runReport; runReport(); }
+
+function renderAdminView(main){ if(!can(['admin'])) return main.innerHTML=`<div class="card"><div class="center">Only Admin can access platform operations.</div></div>`; main.innerHTML=''; const opsCard=document.createElement('div'); opsCard.className='card'; opsCard.innerHTML=`<h3 style="margin:0 0 8px 0">Platform Operations</h3><div style="display:flex;gap:8px;align-items:center"><button id="btnBackup" class="btn">Download Backup (JSON)</button><label class="btn ghost" style="cursor:pointer"><input id="uploadBackup" type="file" accept=".json" style="display:none" /> Restore Backup</label><button id="btnClearDemo" class="btn ghost">Clear Demo Data</button></div><div style="margin-top:12px" class="small">Backups include users, loans, schedules, transactions and audit logs.</div>`; main.appendChild(opsCard);
+  const secCard=document.createElement('div'); secCard.className='card'; secCard.innerHTML=`<h3 style="margin:0 0 8px 0">Security Settings</h3><div style="display:flex;gap:8px;align-items:center"><label class="small">Min password length <input id="pwdMin" type="number" class="input" style="width:80px" /></label><label class="small">Require number <select id="pwdNum" class="input"><option value="false">No</option><option value="true">Yes</option></select></label><label class="small">Session timeout (min) <input id="sessTimeout" type="number" class="input" style="width:100px" /></label></div><div style="margin-top:12px"><div class="small">Portal passwords (changeable)</div><div style="display:flex;gap:8px;margin-top:8px"><label class="small">Admin portal <input id="adminPortalPwd" class="input" placeholder="admin@123" /></label><label class="small">Analyst portal <input id="analystPortalPwd" class="input" placeholder="12345" /></label><button id="btnSaveSec" class="btn">Save</button></div></div><div style="margin-top:10px" class="small">These settings apply to the frontend demo only.</div>`; main.appendChild(secCard);
+  const auditCard=document.createElement('div'); auditCard.className='card'; auditCard.innerHTML=`<h3 style="margin:0 0 8px 0">Audit Log</h3><div style="max-height:260px;overflow:auto"><table class="table"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Meta</th></tr></thead><tbody id="auditBody"></tbody></table></div>`; main.appendChild(auditCard);
+  document.getElementById('btnBackup').onclick=()=>{ const data=JSON.stringify(DB,null,2); downloadText(data,`loanmgr_backup_${new Date().toISOString().slice(0,10)}.json`,'application/json'); };
+  const upload=document.getElementById('uploadBackup');
+  upload.onchange=(e)=>{ const f=e.target.files[0]; if(!f) return; const reader=new FileReader(); reader.onload=()=>{ try{ const parsed=JSON.parse(reader.result); if(!confirm('Restore backup? This will overwrite current data.')) return; localStorage.setItem(DB_KEY,JSON.stringify(parsed)); DB=loadDB(); renderAdminView(main); alert('Backup restored'); }catch(err){ alert('Invalid JSON'); } }; reader.readAsText(f); };
+  document.getElementById('btnClearDemo').onclick=()=>{ if(!confirm('Clear all demo data? This cannot be undone.')) return; localStorage.removeItem(DB_KEY); DB=loadDB(); renderAdminView(main); alert('Demo data cleared'); };
+  document.getElementById('pwdMin').value=SETTINGS.passwordPolicy.minLength||6;
+  document.getElementById('pwdNum').value=SETTINGS.passwordPolicy.requireNumber?'true':'false';
+  document.getElementById('sessTimeout').value=SETTINGS.sessionTimeoutMinutes||240;
+  document.getElementById('adminPortalPwd').value=SETTINGS.portalPasswords.admin||'';
+  document.getElementById('analystPortalPwd').value=SETTINGS.portalPasswords.analyst||'';
+  document.getElementById('btnSaveSec').onclick=()=>{ SETTINGS.passwordPolicy.minLength=Number(document.getElementById('pwdMin').value)||6; SETTINGS.passwordPolicy.requireNumber=document.getElementById('pwdNum').value==='true'; SETTINGS.sessionTimeoutMinutes=Number(document.getElementById('sessTimeout').value)||240; SETTINGS.portalPasswords.admin=document.getElementById('adminPortalPwd').value||SETTINGS.portalPasswords.admin; SETTINGS.portalPasswords.analyst=document.getElementById('analystPortalPwd').value||SETTINGS.portalPasswords.analyst; saveSettings(SETTINGS); alert('Security settings saved (frontend only)'); };
+  const tbody=document.getElementById('auditBody'); tbody.innerHTML=''; DB.audit.slice().reverse().forEach(a=>{ const u=userById(a.user_id); const tr=document.createElement('tr'); tr.innerHTML=`<td>${fmtDate(a.created_at)} ${new Date(a.created_at).toLocaleTimeString()}</td><td>${u?u.name:'system'}</td><td>${a.action}</td><td class="code">${a.meta||''}</td>`; tbody.appendChild(tr); }); }
+
+function createModal(title,width='900px'){ const overlay=document.createElement('div'); overlay.style.position='fixed'; overlay.style.left=0; overlay.style.top=0; overlay.style.right=0; overlay.style.bottom=0; overlay.style.background='rgba(2,6,23,0.08)'; overlay.style.display='flex'; overlay.style.alignItems='center'; overlay.style.justifyContent='center'; overlay.style.zIndex=9999; const box=document.createElement('div'); box.style.width=width; box.style.maxWidth='95%'; box.style.borderRadius='10px'; box.style.background='#fff'; box.style.padding='12px'; box.style.boxShadow='0 12px 40px rgba(2,6,23,0.08)'; const header=document.createElement('div'); header.style.display='flex'; header.style.justifyContent='space-between'; header.style.alignItems='center'; header.innerHTML=`<h3 style="margin:0">${title}</h3><button id="modalClose" class="btn ghost small">Close</button>`; const body=document.createElement('div'); body.style.marginTop='8px'; box.appendChild(header); box.appendChild(body); overlay.appendChild(box); document.body.appendChild(overlay); overlay.querySelector('#modalClose').onclick=()=>document.body.removeChild(overlay); return {overlay,body,close:()=>document.body.removeChild(overlay),show:()=>overlay.style.display='flex'}; }
+function downloadText(text,filename,mime){ const blob=new Blob([text],{type:mime||'text/plain'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
+
+function renderRoleBadges(){ const holder=document.getElementById('roleBadges'); if(!holder) return; holder.innerHTML=''; const el=document.createElement('div'); el.className='role-pill'; el.textContent=SESSION.user?SESSION.user.role.toUpperCase():'GUEST'; holder.appendChild(el); }
+
+function renderAdminPreview(target){ const main=target; main.innerHTML=''; const opsCard=document.createElement('div'); opsCard.className='card'; opsCard.innerHTML=`<h3 style="margin:0 0 8px 0">Platform Operations (Preview)</h3><div style="display:flex;gap:8px;align-items:center"><button id="btnBackupP" class="btn">Download Backup (JSON)</button><label class="btn ghost" style="cursor:pointer"><input id="uploadBackupP" type="file" accept=".json" style="display:none" /> Restore Backup</label><button id="btnClearDemoP" class="btn ghost">Clear Demo Data</button></div><div style="margin-top:12px" class="small">This is a preview of the Admin portal UI.</div>`; main.appendChild(opsCard); const secCard=document.createElement('div'); secCard.className='card'; secCard.innerHTML=`<h3 style="margin:0 0 8px 0">Security Settings (Preview)</h3><div style="display:flex;gap:8px;align-items:center"><label class="small">Min password length <input id="pwdMinP" type="number" class="input" style="width:80px" /></label><label class="small">Require number <select id="pwdNumP" class="input"><option value="false">No</option><option value="true">Yes</option></select></label><label class="small">Session timeout (min) <input id="sessTimeoutP" type="number" class="input" style="width:100px" /></label><button id="btnSaveSecP" class="btn">Save</button></div><div style="margin-top:10px" class="small">Preview only.</div>`; main.appendChild(secCard); const auditCard=document.createElement('div'); auditCard.className='card'; auditCard.innerHTML=`<h3 style="margin:0 0 8px 0">Audit Log (Preview)</h3><div style="max-height:260px;overflow:auto"><table class="table"><thead><tr><th>When</th><th>User</th><th>Action</th><th>Meta</th></tr></thead><tbody id="auditBodyP"></tbody></table></div>`; main.appendChild(auditCard); document.getElementById('btnBackupP').onclick=()=>{ const data=JSON.stringify(DB,null,2); downloadText(data,`loanmgr_backup_preview_${new Date().toISOString().slice(0,10)}.json`,'application/json'); }; document.getElementById('btnClearDemoP').onclick=()=>{ if(!confirm('Clear demo data?')) return; localStorage.removeItem(DB_KEY); DB=loadDB(); alert('Cleared (preview)'); }; document.getElementById('pwdMinP').value=SETTINGS.passwordPolicy.minLength||6; document.getElementById('pwdNumP').value=SETTINGS.passwordPolicy.requireNumber?'true':'false'; document.getElementById('sessTimeoutP').value=SETTINGS.sessionTimeoutMinutes||240; document.getElementById('btnSaveSecP').onclick=()=>{ alert('Settings saved (preview only)'); }; const tbody=document.getElementById('auditBodyP'); tbody.innerHTML=''; DB.audit.slice().reverse().forEach(a=>{ const u=userById(a.user_id); const tr=document.createElement('tr'); tr.innerHTML=`<td>${fmtDate(a.created_at)} ${new Date(a.created_at).toLocaleTimeString()}</td><td>${u?u.name:'system'}</td><td>${a.action}</td><td class="code">${a.meta||''}</td>`; tbody.appendChild(tr); }); }
+
+function renderAnalystPreview(target){ const main=target; main.innerHTML=''; const controls=document.createElement('div'); controls.className='card'; controls.innerHTML=`<h3 style="margin:0 0 8px 0">Financial Reports (Preview)</h3><div class="filter-row"><label class="small">From <input id="repFromP" type="date" class="input" /></label><label class="small">To <input id="repToP" type="date" class="input" /></label><label class="small">Lender <select id="repLenderP" class="input"><option value="">All</option></select></label><label class="small">Status <select id="repStatusP" class="input"><option value="">All</option><option value="application">Application</option><option value="disbursed">Disbursed</option><option value="active">Active</option><option value="repaid">Repaid</option></select></label><button id="btnRunReportP" class="btn">Run</button><button id="btnExportCSVP" class="btn ghost">Export CSV</button></div>`; main.appendChild(controls); const kpiCard=document.createElement('div'); kpiCard.className='card'; kpiCard.innerHTML=`<div class="kpis"><div class="kpi"><h4>Outstanding</h4><p id="kOutstandingP">-</p></div><div class="kpi"><h4>Avg APR</h4><p id="kAvgAPRP">-</p></div><div class="kpi"><h4>NPL % (30d)</h4><p id="kNPLP">-</p></div></div>`; main.appendChild(kpiCard); const tableCard=document.createElement('div'); tableCard.className='card'; tableCard.innerHTML=`<h4 style="margin:0 0 8px 0">Loans Report</h4><table class="table"><thead><tr><th>Loan</th><th>Borrower</th><th>Principal</th><th>Rate</th><th>Term</th><th>Status</th><th>Risk</th></tr></thead><tbody id="reportBodyP"></tbody></table>`; main.appendChild(tableCard); const repLender=document.getElementById('repLenderP'); repLender.innerHTML='<option value="">All</option>'; DB.users.filter(u=>u.role==='lender').forEach(l=> repLender.innerHTML+=`<option value="${l.id}">${l.name}</option>`); function computeRisk(loan){ const score=Math.round(Math.min(100,(loan.annual_rate/20)*50 + (loan.term_months/120)*30 + (loan.principal/1000000)*20)); const label=score>70?'High':score>40?'Medium':'Low'; return {score,label}; } function runReportP(){ const from=document.getElementById('repFromP').value; const to=document.getElementById('repToP').value; const lender=document.getElementById('repLenderP').value; const status=document.getElementById('repStatusP').value; let loans=DB.loans.slice(); if(from) loans=loans.filter(l=>new Date(l.created_at)>=new Date(from)); if(to) loans=loans.filter(l=>new Date(l.created_at)<=new Date(new Date(to).setHours(23,59,59))); if(lender) loans=loans.filter(l=>l.lender_id===lender); if(status) loans=loans.filter(l=>l.status===status); const outstanding=loans.reduce((s,l)=>s+Number(l.principal||0),0); const avgAPR=loans.length?(loans.reduce((s,l)=>s+Number(l.annual_rate||0),0)/loans.length).toFixed(2):0; const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-30); const nplInst=DB.schedules.filter(s=>s.status==='due'&&new Date(s.due_date)<cutoff).length; const nplPct=DB.schedules.length?((nplInst/DB.schedules.length)*100).toFixed(2):0; document.getElementById('kOutstandingP').innerText=money(outstanding); document.getElementById('kAvgAPRP').innerText=avgAPR+'%'; document.getElementById('kNPLP').innerText=nplPct+'%'; const tbody=document.getElementById('reportBodyP'); tbody.innerHTML=''; loans.forEach(l=>{ const r=computeRisk(l); const tr=document.createElement('tr'); tr.innerHTML=`<td>${l.id}</td><td>${l.borrower_name}</td><td>${money(l.principal)}</td><td>${l.annual_rate}%</td><td>${l.term_months}</td><td>${l.status}</td><td>${r.label} (${r.score})</td>`; tbody.appendChild(tr); }); document.getElementById('btnExportCSVP').onclick=()=>{ const csvRows=[['loan_id','borrower','principal','rate','term','status','risk_score']]; loans.forEach(l=>{ const r=computeRisk(l); csvRows.push([l.id,`"${l.borrower_name}"`,l.principal,l.annual_rate,l.term_months,l.status,r.score]); }); const csv=csvRows.map(r=>r.join(',')).join('\n'); downloadText(csv,`loans_report_preview_${Date.now()}.csv`,'text/csv'); }; } document.getElementById('btnRunReportP').onclick=runReportP; runReportP(); }
+
+document.getElementById('previewAdminBtn').onclick=()=>{ const modal=createModal('Admin Portal Preview','1100px'); renderAdminPreview(modal.body); };
+document.getElementById('previewAnalystBtn').onclick=()=>{ const modal=createModal('Analyst Portal Preview','1100px'); renderAnalystPreview(modal.body); };
+
+renderApp(); renderRoleBadges(); updatePreviewButtonsVisibility();
+</script>
+</body>
+</html>
